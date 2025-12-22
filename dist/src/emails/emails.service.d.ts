@@ -4,10 +4,17 @@ export declare class EmailsService {
     private prisma;
     private domainsService;
     constructor(prisma: PrismaService, domainsService: DomainsService);
-    generateEmail(): Promise<{
+    getActiveDomains(): Promise<string[]>;
+    generateEmail(domainName?: string): Promise<{
         email: string;
         expires_at: Date;
     }>;
+    createCustomEmail(name: string, domainName?: string): Promise<{
+        email: string;
+        expires_at: Date;
+    }>;
+    private getDomain;
+    private createEmailRecord;
     getEmail(email: string): Promise<({
         domain: {
             id: string;

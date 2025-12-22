@@ -6,10 +6,23 @@ const common_1 = require("@nestjs/common");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors({
-        origin: ['http://localhost:3001', 'http://localhost:3000'],
+        origin: [
+            'http://localhost:3001',
+            'http://localhost:3000',
+            'https://admin.gencutaraka.xyz',
+            'https://gencutaraka.xyz',
+        ],
         credentials: true,
     });
-    app.setGlobalPrefix('api');
+    app.use((req, res, next) => {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        next();
+    });
+    app.setGlobalPrefix('api', {
+        exclude: ['/'],
+    });
     app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
     await app.listen(process.env.PORT ?? 3000);
 }

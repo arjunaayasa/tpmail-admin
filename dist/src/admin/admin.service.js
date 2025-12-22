@@ -143,16 +143,22 @@ let AdminService = AdminService_1 = class AdminService {
         if (!existing) {
             throw new common_1.NotFoundException('Domain not found');
         }
+        const updateData = {};
+        if (dto.domain !== undefined)
+            updateData.domain = dto.domain;
+        if (dto.imap_host !== undefined)
+            updateData.imapHost = dto.imap_host;
+        if (dto.imap_port !== undefined)
+            updateData.imapPort = dto.imap_port;
+        if (dto.imap_user !== undefined)
+            updateData.imapUser = dto.imap_user;
+        if (dto.imap_password !== undefined)
+            updateData.imapPassword = dto.imap_password;
+        if (dto.active !== undefined)
+            updateData.active = dto.active;
         const domain = await this.prisma.domain.update({
             where: { id },
-            data: {
-                domain: dto.domain,
-                imapHost: dto.imap_host,
-                imapPort: dto.imap_port,
-                imapUser: dto.imap_user,
-                imapPassword: dto.imap_password,
-                active: dto.active,
-            },
+            data: updateData,
         });
         return {
             id: domain.id,
@@ -165,9 +171,20 @@ let AdminService = AdminService_1 = class AdminService {
         };
     }
     async deleteDomain(id) {
-        const existing = await this.prisma.domain.findUnique({ where: { id } });
+        const existing = await this.prisma.domain.findUnique({
+            where: { id },
+            include: { emails: { take: 1 } }
+        });
         if (!existing) {
             throw new common_1.NotFoundException('Domain not found');
+        }
+        if (existing.emails.length > 0) {
+            await this.prisma.message.deleteMany({
+                where: { email: { domainId: id } }
+            });
+            await this.prisma.email.deleteMany({
+                where: { domainId: id }
+            });
         }
         await this.prisma.domain.delete({ where: { id } });
         return { success: true };
@@ -233,6 +250,52 @@ let AdminService = AdminService_1 = class AdminService {
                 message: error.message || 'IMAP connection failed',
             };
         }
+    }
+    async getEmails() {
+        const emails = await this.prisma.email.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                domain: { select: { domain: true } },
+                _count: { select: { messages: true } },
+            },
+        });
+        return emails.map(e => ({
+            id: e.id,
+            email: e.email,
+            domain: e.domain.domain,
+            status: e.status,
+            messages_count: e._count.messages,
+            created_at: e.createdAt.toISOString(),
+            expires_at: e.expiresAt.toISOString(),
+        }));
+    }
+    async getEmailMessages(emailAddress) {
+        const email = await this.prisma.email.findUnique({
+            where: { email: emailAddress.toLowerCase() },
+            include: {
+                messages: {
+                    orderBy: { receivedAt: 'desc' },
+                },
+            },
+        });
+        if (!email) {
+            throw new common_1.NotFoundException('Email not found');
+        }
+        return email.messages.map(m => ({
+            id: m.id,
+            from: m.from,
+            subject: m.subject,
+            body: m.body,
+            received_at: m.receivedAt.toISOString(),
+        }));
+    }
+    async deleteEmail(id) {
+        const existing = await this.prisma.email.findUnique({ where: { id } });
+        if (!existing) {
+            throw new common_1.NotFoundException('Email not found');
+        }
+        await this.prisma.email.delete({ where: { id } });
+        return { success: true };
     }
 };
 exports.AdminService = AdminService;

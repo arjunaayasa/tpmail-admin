@@ -52,6 +52,15 @@ let AdminController = class AdminController {
     async testImap(dto) {
         return this.adminService.testImap(dto);
     }
+    async getEmails() {
+        return this.adminService.getEmails();
+    }
+    async getEmailMessages(email) {
+        return this.adminService.getEmailMessages(email);
+    }
+    async deleteEmail(id) {
+        return this.adminService.deleteEmail(id);
+    }
 };
 exports.AdminController = AdminController;
 __decorate([
@@ -131,6 +140,29 @@ __decorate([
     __metadata("design:paramtypes", [admin_dto_1.TestImapDto]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "testImap", null);
+__decorate([
+    (0, common_1.Get)('emails'),
+    (0, common_1.UseGuards)(admin_jwt_guard_1.AdminJwtGuard),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getEmails", null);
+__decorate([
+    (0, common_1.Get)('emails/:email/messages'),
+    (0, common_1.UseGuards)(admin_jwt_guard_1.AdminJwtGuard),
+    __param(0, (0, common_1.Param)('email')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getEmailMessages", null);
+__decorate([
+    (0, common_1.Delete)('emails/:id'),
+    (0, common_1.UseGuards)(admin_jwt_guard_1.AdminJwtGuard),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "deleteEmail", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     __metadata("design:paramtypes", [admin_service_1.AdminService])

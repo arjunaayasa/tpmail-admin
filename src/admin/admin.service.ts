@@ -123,16 +123,18 @@ export class AdminService {
             throw new NotFoundException('Domain not found');
         }
 
+        // Build update data, excluding undefined values
+        const updateData: Record<string, unknown> = {};
+        if (dto.domain !== undefined) updateData.domain = dto.domain;
+        if (dto.imap_host !== undefined) updateData.imapHost = dto.imap_host;
+        if (dto.imap_port !== undefined) updateData.imapPort = dto.imap_port;
+        if (dto.imap_user !== undefined) updateData.imapUser = dto.imap_user;
+        if (dto.imap_password !== undefined) updateData.imapPassword = dto.imap_password;
+        if (dto.active !== undefined) updateData.active = dto.active;
+
         const domain = await this.prisma.domain.update({
             where: { id },
-            data: {
-                domain: dto.domain,
-                imapHost: dto.imap_host,
-                imapPort: dto.imap_port,
-                imapUser: dto.imap_user,
-                imapPassword: dto.imap_password,
-                active: dto.active,
-            },
+            data: updateData,
         });
 
         return {
@@ -147,9 +149,23 @@ export class AdminService {
     }
 
     async deleteDomain(id: string) {
-        const existing = await this.prisma.domain.findUnique({ where: { id } });
+        const existing = await this.prisma.domain.findUnique({
+            where: { id },
+            include: { emails: { take: 1 } }
+        });
         if (!existing) {
             throw new NotFoundException('Domain not found');
+        }
+
+        // Check if domain has related emails
+        if (existing.emails.length > 0) {
+            // Delete all related emails and their messages first
+            await this.prisma.message.deleteMany({
+                where: { email: { domainId: id } }
+            });
+            await this.prisma.email.deleteMany({
+                where: { domainId: id }
+            });
         }
 
         await this.prisma.domain.delete({ where: { id } });
@@ -227,5 +243,60 @@ export class AdminService {
                 message: error.message || 'IMAP connection failed',
             };
         }
+    }
+
+    // ========== EMAILS ==========
+    async getEmails() {
+        const emails = await this.prisma.email.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                domain: { select: { domain: true } },
+                _count: { select: { messages: true } },
+            },
+        });
+
+        return emails.map(e => ({
+            id: e.id,
+            email: e.email,
+            domain: e.domain.domain,
+            status: e.status,
+            messages_count: e._count.messages,
+            created_at: e.createdAt.toISOString(),
+            expires_at: e.expiresAt.toISOString(),
+        }));
+    }
+
+    async getEmailMessages(emailAddress: string) {
+        const email = await this.prisma.email.findUnique({
+            where: { email: emailAddress.toLowerCase() },
+            include: {
+                messages: {
+                    orderBy: { receivedAt: 'desc' },
+                },
+            },
+        });
+
+        if (!email) {
+            throw new NotFoundException('Email not found');
+        }
+
+        return email.messages.map(m => ({
+            id: m.id,
+            from: m.from,
+            subject: m.subject,
+            body: m.body,
+            received_at: m.receivedAt.toISOString(),
+        }));
+    }
+
+    async deleteEmail(id: string) {
+        const existing = await this.prisma.email.findUnique({ where: { id } });
+        if (!existing) {
+            throw new NotFoundException('Email not found');
+        }
+
+        // Messages will be deleted by cascade
+        await this.prisma.email.delete({ where: { id } });
+        return { success: true };
     }
 }

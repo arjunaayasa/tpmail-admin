@@ -8,27 +8,73 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailsController = void 0;
 const common_1 = require("@nestjs/common");
 const emails_service_1 = require("./emails.service");
 const api_key_guard_1 = require("../auth/api-key.guard");
+const class_validator_1 = require("class-validator");
+class GenerateEmailDto {
+    domain;
+}
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], GenerateEmailDto.prototype, "domain", void 0);
+class CreateEmailDto {
+    name;
+    domain;
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
+    __metadata("design:type", String)
+], CreateEmailDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateEmailDto.prototype, "domain", void 0);
 let EmailsController = class EmailsController {
     emailsService;
     constructor(emailsService) {
         this.emailsService = emailsService;
     }
-    async generate() {
-        return this.emailsService.generateEmail();
+    async listDomains() {
+        return this.emailsService.getActiveDomains();
+    }
+    async generate(dto) {
+        return this.emailsService.generateEmail(dto.domain);
+    }
+    async createCustom(dto) {
+        return this.emailsService.createCustomEmail(dto.name, dto.domain);
     }
 };
 exports.EmailsController = EmailsController;
 __decorate([
-    (0, common_1.Post)('generate'),
+    (0, common_1.Get)('domains'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
+], EmailsController.prototype, "listDomains", null);
+__decorate([
+    (0, common_1.Post)('generate'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [GenerateEmailDto]),
+    __metadata("design:returntype", Promise)
 ], EmailsController.prototype, "generate", null);
+__decorate([
+    (0, common_1.Post)('create'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [CreateEmailDto]),
+    __metadata("design:returntype", Promise)
+], EmailsController.prototype, "createCustom", null);
 exports.EmailsController = EmailsController = __decorate([
     (0, common_1.Controller)('emails'),
     (0, common_1.UseGuards)(api_key_guard_1.ApiKeyGuard),

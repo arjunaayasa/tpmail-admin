@@ -78,4 +78,23 @@ export declare class AdminService {
         success: boolean;
         message: any;
     }>;
+    getEmails(): Promise<{
+        id: string;
+        email: string;
+        domain: string;
+        status: import(".prisma/client").$Enums.EmailStatus;
+        messages_count: number;
+        created_at: string;
+        expires_at: string;
+    }[]>;
+    getEmailMessages(emailAddress: string): Promise<{
+        id: string;
+        from: string;
+        subject: string | null;
+        body: string | null;
+        received_at: string;
+    }[]>;
+    deleteEmail(id: string): Promise<{
+        success: boolean;
+    }>;
 }

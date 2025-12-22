@@ -86,4 +86,23 @@ export class AdminController {
     async testImap(@Body() dto: TestImapDto) {
         return this.adminService.testImap(dto);
     }
+
+    // ========== EMAILS ==========
+    @Get('emails')
+    @UseGuards(AdminJwtGuard)
+    async getEmails() {
+        return this.adminService.getEmails();
+    }
+
+    @Get('emails/:email/messages')
+    @UseGuards(AdminJwtGuard)
+    async getEmailMessages(@Param('email') email: string) {
+        return this.adminService.getEmailMessages(email);
+    }
+
+    @Delete('emails/:id')
+    @UseGuards(AdminJwtGuard)
+    async deleteEmail(@Param('id') id: string) {
+        return this.adminService.deleteEmail(id);
+    }
 }
