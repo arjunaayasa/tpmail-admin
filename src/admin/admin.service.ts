@@ -270,9 +270,7 @@ export class AdminService {
         const email = await this.prisma.email.findUnique({
             where: { email: emailAddress.toLowerCase() },
             include: {
-                messages: {
-                    orderBy: { receivedAt: 'desc' },
-                },
+                domain: true,
             },
         });
 
@@ -280,7 +278,41 @@ export class AdminService {
             throw new NotFoundException('Email not found');
         }
 
-        return email.messages.map(m => ({
+        // Only fetch from IMAP if email is still active
+        if (email.status === 'ACTIVE' && new Date() < email.expiresAt) {
+            try {
+                // Fetch from IMAP
+                const fetchedMessages = await this.imapService.fetchMessages(email.domain, email.email);
+
+                // Save new messages to DB
+                if (fetchedMessages.length > 0) {
+                    const data = fetchedMessages.map(msg => ({
+                        emailId: email.id,
+                        from: msg.from,
+                        subject: msg.subject,
+                        body: msg.body,
+                        receivedAt: msg.receivedAt,
+                        messageHash: msg.messageHash,
+                    }));
+
+                    await this.prisma.message.createMany({
+                        data,
+                        skipDuplicates: true,
+                    });
+                }
+            } catch (e) {
+                this.logger.error(`Error fetching IMAP for ${emailAddress}: ${e.message}`);
+                // Continue to return existing messages even if IMAP fails
+            }
+        }
+
+        // Return all messages from DB
+        const messages = await this.prisma.message.findMany({
+            where: { emailId: email.id },
+            orderBy: { receivedAt: 'desc' },
+        });
+
+        return messages.map(m => ({
             id: m.id,
             from: m.from,
             subject: m.subject,
@@ -288,6 +320,7 @@ export class AdminService {
             received_at: m.receivedAt.toISOString(),
         }));
     }
+
 
     async deleteEmail(id: string) {
         const existing = await this.prisma.email.findUnique({ where: { id } });

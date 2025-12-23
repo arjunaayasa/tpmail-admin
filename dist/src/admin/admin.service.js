@@ -273,15 +273,39 @@ let AdminService = AdminService_1 = class AdminService {
         const email = await this.prisma.email.findUnique({
             where: { email: emailAddress.toLowerCase() },
             include: {
-                messages: {
-                    orderBy: { receivedAt: 'desc' },
-                },
+                domain: true,
             },
         });
         if (!email) {
             throw new common_1.NotFoundException('Email not found');
         }
-        return email.messages.map(m => ({
+        if (email.status === 'ACTIVE' && new Date() < email.expiresAt) {
+            try {
+                const fetchedMessages = await this.imapService.fetchMessages(email.domain, email.email);
+                if (fetchedMessages.length > 0) {
+                    const data = fetchedMessages.map(msg => ({
+                        emailId: email.id,
+                        from: msg.from,
+                        subject: msg.subject,
+                        body: msg.body,
+                        receivedAt: msg.receivedAt,
+                        messageHash: msg.messageHash,
+                    }));
+                    await this.prisma.message.createMany({
+                        data,
+                        skipDuplicates: true,
+                    });
+                }
+            }
+            catch (e) {
+                this.logger.error(`Error fetching IMAP for ${emailAddress}: ${e.message}`);
+            }
+        }
+        const messages = await this.prisma.message.findMany({
+            where: { emailId: email.id },
+            orderBy: { receivedAt: 'desc' },
+        });
+        return messages.map(m => ({
             id: m.id,
             from: m.from,
             subject: m.subject,
